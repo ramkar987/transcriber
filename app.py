@@ -141,7 +141,7 @@ with col_input:
     )
     include_timestamps = st.checkbox(
         "Incluir timestamps na transcrição",
-        value=True,
+        value=False,
     )
     st.markdown('</div>', unsafe_allow_html=True)
 
