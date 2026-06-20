@@ -11,7 +11,6 @@ import whisper
 @dataclass
 class TranscriptSegment:
     """Segmento de transcrição com timestamp e texto."""
-
     start_seconds: float
     text: str
 
