@@ -48,7 +48,7 @@ def _chat(client: Groq, system_prompt: str, user_prompt: str, model: str) -> str
     return response.choices[0].message.content or ""
 
 
-def summarize_transcript(transcript_text: str, model: str = "llama-3.1-70b-versatile") -> str:
+def summarize_transcript(transcript_text: str, model: str = "llama-3.3-70b-versatile") -> str:
     """Gera um resumo curto e objetivo da transcrição."""
     client = get_groq_client()
     system_prompt = "Você é um assistente que resume transcrições em português com clareza e objetividade."
@@ -60,7 +60,7 @@ def summarize_transcript(transcript_text: str, model: str = "llama-3.1-70b-versa
     return _chat(client, system_prompt, user_prompt, model).strip()
 
 
-def translate_transcript(transcript_text: str, target_language: str, model: str = "llama-3.1-70b-versatile") -> str:
+def translate_transcript(transcript_text: str, target_language: str, model: str = "llama-3.3-70b-versatile") -> str:
     """Traduz a transcrição para o idioma de destino."""
     client = get_groq_client()
     system_prompt = "Você é um tradutor profissional que preserva sentido, tom e clareza."
