@@ -21,17 +21,7 @@ def build_markdown(
     transcribed_at: datetime | None = None,
     include_timestamps: bool = True,
 ) -> str:
-    """Cria o conteúdo Markdown no formato exigido.
-
-    Args:
-        metadata: Metadados da mídia.
-        segments: Segmentos de transcrição.
-        transcribed_at: Data/hora da transcrição.
-        include_timestamps: Se True, inclui timestamps em cada linha.
-
-    Returns:
-        Conteúdo Markdown pronto para Obsidian.
-    """
+    """Cria o conteúdo Markdown no formato exigido."""
     ts = transcribed_at or datetime.now()
     source_tag = infer_source_tag(metadata.source_url)
     duration_h = format_timestamp(metadata.duration_seconds)
