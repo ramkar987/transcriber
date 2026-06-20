@@ -17,7 +17,6 @@ from downloader import (
 from formatter import build_markdown
 from transcriber import TranscriptionError, transcribe_audio
 
-# ─── Configuração da página ───────────────────────────────────────────────────
 st.set_page_config(
     page_title="Transcritor IA",
     page_icon="🎙️",
@@ -25,17 +24,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ─── CSS customizado ──────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* Remove padding padrão do topo */
 .block-container {
     padding-top: 1.8rem;
     padding-bottom: 2rem;
     max-width: 1200px;
 }
-
-/* Cabeçalho principal */
 .app-header {
     display: flex;
     align-items: center;
@@ -55,8 +50,6 @@ st.markdown("""
     font-size: 0.95rem;
     margin-bottom: 1.5rem;
 }
-
-/* Cards */
 .card {
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
@@ -72,35 +65,6 @@ st.markdown("""
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
-
-/* Badge de status */
-.badge-ok {
-    display: inline-block;
-    background: #065F46;
-    color: #6EE7B7;
-    padding: 0.2rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-.badge-error {
-    display: inline-block;
-    background: #7F1D1D;
-    color: #FCA5A5;
-    padding: 0.2rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-/* Divider */
-.divider {
-    border: none;
-    border-top: 1px solid rgba(255,255,255,0.07);
-    margin: 1rem 0;
-}
-
-/* Botão de download customizado */
 div[data-testid="stDownloadButton"] button {
     width: 100%;
     background: linear-gradient(90deg, #7C3AED, #5B21B6);
@@ -110,19 +74,11 @@ div[data-testid="stDownloadButton"] button {
     padding: 0.55rem 1rem;
     font-weight: 600;
     font-size: 0.95rem;
-    transition: opacity 0.2s;
 }
-div[data-testid="stDownloadButton"] button:hover {
-    opacity: 0.88;
-}
-
-/* Textarea */
 textarea {
     font-family: 'Courier New', monospace !important;
     font-size: 0.82rem !important;
 }
-
-/* Métricas */
 .metric-row {
     display: flex;
     gap: 1rem;
@@ -151,7 +107,6 @@ textarea {
 </style>
 """, unsafe_allow_html=True)
 
-# ─── Cabeçalho ────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="app-header">
     <span style="font-size:2rem;">🎙️</span>
@@ -162,12 +117,9 @@ st.markdown("""
 </p>
 """, unsafe_allow_html=True)
 
-# ─── Layout de duas colunas ───────────────────────────────────────────────────
 col_input, col_output = st.columns([1, 1.3], gap="large")
 
-# ─── Coluna esquerda: configurações ──────────────────────────────────────────
 with col_input:
-
     st.markdown('<div class="card"><div class="card-title">🔗 Vídeo</div>', unsafe_allow_html=True)
     url = st.text_input(
         "URL do vídeo",
@@ -181,13 +133,15 @@ with col_input:
         "Modelo Whisper",
         options=["base", "small", "medium"],
         index=0,
-        help="Modelos maiores são mais precisos, mas mais lentos.",
     )
     language = st.selectbox(
         "Idioma do áudio",
         options=["auto", "pt", "en", "es", "fr", "de", "it"],
         index=0,
-        help="'auto' detecta automaticamente.",
+    )
+    include_timestamps = st.checkbox(
+        "Incluir timestamps na transcrição",
+        value=True,
     )
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -208,44 +162,25 @@ with col_input:
             "mixtral-8x7b-32768",
         ],
         index=0,
-        help="Modelos maiores geram resultados mais precisos.",
     )
     st.markdown('</div>', unsafe_allow_html=True)
 
     process_btn = st.button("▶ Processar Vídeo", use_container_width=True, type="primary")
 
-# ─── Coluna direita: resultado ────────────────────────────────────────────────
 with col_output:
-
     st.markdown('<div class="card"><div class="card-title">📄 Resultado</div>', unsafe_allow_html=True)
-
     result_placeholder = st.empty()
-    download_placeholder = st.empty()
-
-    if not process_btn:
-        result_placeholder.markdown("""
-<div style="text-align:center; padding: 3rem 1rem; color: #6B7280;">
-    <span style="font-size:2.5rem;">📂</span><br><br>
-    <span>Preencha os campos ao lado e clique em <strong>Processar Vídeo</strong>.</span>
-</div>
-""", unsafe_allow_html=True)
-
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ─── Processamento ────────────────────────────────────────────────────────────
 if process_btn:
     if not url.strip():
         with col_output:
             st.error("Informe uma URL válida.")
         st.stop()
 
-    final_markdown = None
-    metadata = None
-
     try:
         with col_output:
             with st.status("Processando...", expanded=True) as status:
-
                 st.write("🔍 Validando URL e coletando metadados...")
                 metadata = extract_metadata(url.strip())
 
@@ -266,10 +201,19 @@ if process_btn:
                         language=None if language == "auto" else language,
                     )
 
-                    transcript_text = "\n".join(
-                        f"[{seg.start_seconds:0.0f}] {seg.text}" for seg in segments
-                    )
-                    markdown_parts = [build_markdown(metadata, segments)]
+                    transcript_lines = [
+                        f"[{seg.start_seconds:0.0f}] {seg.text}" if include_timestamps else seg.text
+                        for seg in segments
+                    ]
+                    transcript_text = "\n".join(transcript_lines)
+
+                    markdown_parts = [
+                        build_markdown(
+                            metadata,
+                            segments,
+                            include_timestamps=include_timestamps,
+                        )
+                    ]
 
                     if use_summary:
                         st.write("📝 Gerando resumo com IA...")
@@ -284,9 +228,8 @@ if process_btn:
                 final_markdown = "\n".join(markdown_parts)
                 status.update(label="✅ Concluído!", state="complete", expanded=False)
 
-        # Métricas
         with col_output:
-            words = len(transcript_text.split()) if "transcript_text" in dir() else 0
+            words = len(transcript_text.split())
             st.markdown(f"""
 <div class="metric-row">
     <div class="metric-box">
@@ -330,7 +273,7 @@ if process_btn:
                 else:
                     st.info("Tradução IA não foi solicitada.")
 
-            st.markdown("<hr class='divider'>", unsafe_allow_html=True)
+            st.markdown("<hr style='border-top:1px solid rgba(255,255,255,0.07);'>", unsafe_allow_html=True)
             safe_name = metadata.title[:80].replace(" ", "_")
             st.download_button(
                 label="⬇️ Baixar Markdown completo",
