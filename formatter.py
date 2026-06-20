@@ -19,8 +19,19 @@ def build_markdown(
     metadata: MediaMetadata,
     segments: list[TranscriptSegment],
     transcribed_at: datetime | None = None,
+    include_timestamps: bool = True,
 ) -> str:
-    """Cria o conteúdo Markdown no formato exigido."""
+    """Cria o conteúdo Markdown no formato exigido.
+
+    Args:
+        metadata: Metadados da mídia.
+        segments: Segmentos de transcrição.
+        transcribed_at: Data/hora da transcrição.
+        include_timestamps: Se True, inclui timestamps em cada linha.
+
+    Returns:
+        Conteúdo Markdown pronto para Obsidian.
+    """
     ts = transcribed_at or datetime.now()
     source_tag = infer_source_tag(metadata.source_url)
     duration_h = format_timestamp(metadata.duration_seconds)
@@ -39,7 +50,10 @@ def build_markdown(
         "",
     ]
     for seg in segments:
-        lines.append(f"[{format_timestamp(seg.start_seconds)}] {seg.text}")
+        if include_timestamps:
+            lines.append(f"[{format_timestamp(seg.start_seconds)}] {seg.text}")
+        else:
+            lines.append(seg.text)
     lines.append("")
     return "\n".join(lines)
 
