@@ -11,7 +11,6 @@ import yt_dlp
 @dataclass
 class MediaMetadata:
     """Representa os metadados essenciais de uma mídia suportada."""
-
     title: str
     source_url: str
     duration_seconds: int
