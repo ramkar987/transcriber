@@ -1,7 +1,5 @@
-streamlit==1.38.0
-yt-dlp==2025.2.19
-openai-whisper==20250625
-torch==2.7.1
-groq==0.31.0
-python-dotenv==1.1.0
-rich==13.9.4
+streamlit
+yt-dlp
+openai-whisper
+groq
+python-dotenv
