@@ -15,6 +15,7 @@ from downloader import (
     extract_metadata,
 )
 from formatter import build_markdown
+from limits import AudioLimits, file_size_mb, should_block_audio_size, should_warn_audio_size
 from transcriber import TranscriptionError, transcribe_audio
 
 st.set_page_config(
@@ -129,30 +130,15 @@ with col_input:
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="card"><div class="card-title">⚙️ Transcrição</div>', unsafe_allow_html=True)
-    whisper_model = st.selectbox(
-        "Modelo Whisper",
-        options=["base", "small", "medium"],
-        index=0,
-    )
-    language = st.selectbox(
-        "Idioma do áudio",
-        options=["auto", "pt", "en", "es", "fr", "de", "it"],
-        index=0,
-    )
-    include_timestamps = st.checkbox(
-        "Incluir timestamps na transcrição",
-        value=False,
-    )
+    whisper_model = st.selectbox("Modelo Whisper", options=["base", "small", "medium"], index=0)
+    language = st.selectbox("Idioma do áudio", options=["auto", "pt", "en", "es", "fr", "de", "it"], index=0)
+    include_timestamps = st.checkbox("Incluir timestamps na transcrição", value=False)
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="card"><div class="card-title">🤖 Inteligência Artificial</div>', unsafe_allow_html=True)
     use_summary = st.checkbox("Gerar resumo com IA", value=True)
     use_translation = st.checkbox("Gerar tradução com IA", value=False)
-    translation_language = st.text_input(
-        "Idioma de destino",
-        value="inglês",
-        disabled=not use_translation,
-    )
+    translation_language = st.text_input("Idioma de destino", value="inglês", disabled=not use_translation)
     groq_model = st.selectbox(
         "Modelo Groq",
         options=[
@@ -169,7 +155,7 @@ with col_input:
 
 with col_output:
     st.markdown('<div class="card"><div class="card-title">📄 Resultado</div>', unsafe_allow_html=True)
-    result_placeholder = st.empty()
+    st.markdown('<div style="text-align:center; padding: 2rem 1rem; color:#6B7280;">Preencha os campos ao lado e clique em <strong>Processar Vídeo</strong>.</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 if process_btn:
@@ -178,13 +164,14 @@ if process_btn:
             st.error("Informe uma URL válida.")
         st.stop()
 
+    limits = AudioLimits()
     try:
         with col_output:
             with st.status("Processando...", expanded=True) as status:
                 st.write("🔍 Validando URL e coletando metadados...")
                 metadata = extract_metadata(url.strip())
 
-                if metadata.duration_seconds > 2 * 60 * 60:
+                if metadata.duration_seconds > limits.max_duration_seconds:
                     st.warning("Vídeo com mais de 2 horas. O processamento pode ser demorado.")
 
                 duration_fmt = f"{metadata.duration_seconds // 3600:02d}:{(metadata.duration_seconds % 3600) // 60:02d}:{metadata.duration_seconds % 60:02d}"
@@ -193,6 +180,13 @@ if process_btn:
                 with tempfile.TemporaryDirectory() as tmpdir:
                     audio_dir = Path(tmpdir) / "audio"
                     audio_path, metadata = download_audio(url.strip(), audio_dir)
+
+                    audio_mb = file_size_mb(audio_path)
+                    if should_block_audio_size(audio_mb, limits):
+                        st.error(f"Áudio muito grande ({audio_mb:.1f} MB). Limite máximo: {limits.block_mb:.1f} MB.")
+                        st.stop()
+                    if should_warn_audio_size(audio_mb, limits):
+                        st.warning(f"Áudio grande ({audio_mb:.1f} MB). Isso pode deixar a transcrição mais lenta.")
 
                     st.write("🎙️ Transcrevendo com Whisper...")
                     segments = transcribe_audio(
@@ -232,41 +226,21 @@ if process_btn:
             words = len(transcript_text.split())
             st.markdown(f"""
 <div class="metric-row">
-    <div class="metric-box">
-        <div class="metric-label">Duração</div>
-        <div class="metric-value">{duration_fmt}</div>
-    </div>
-    <div class="metric-box">
-        <div class="metric-label">Segmentos</div>
-        <div class="metric-value">{len(segments)}</div>
-    </div>
-    <div class="metric-box">
-        <div class="metric-label">Palavras</div>
-        <div class="metric-value">{words:,}</div>
-    </div>
-    <div class="metric-box">
-        <div class="metric-label">Modelo</div>
-        <div class="metric-value">{whisper_model}</div>
-    </div>
+    <div class="metric-box"><div class="metric-label">Duração</div><div class="metric-value">{duration_fmt}</div></div>
+    <div class="metric-box"><div class="metric-label">Áudio</div><div class="metric-value">{audio_mb:.1f} MB</div></div>
+    <div class="metric-box"><div class="metric-label">Segmentos</div><div class="metric-value">{len(segments)}</div></div>
+    <div class="metric-box"><div class="metric-label">Palavras</div><div class="metric-value">{words:,}</div></div>
 </div>
 """, unsafe_allow_html=True)
 
             tabs = st.tabs(["📄 Transcrição", "📝 Resumo IA", "🌐 Tradução"])
-
             with tabs[0]:
-                st.text_area(
-                    "Transcrição completa",
-                    value=markdown_parts[0],
-                    height=400,
-                    label_visibility="collapsed",
-                )
-
+                st.text_area("Transcrição completa", value=markdown_parts[0], height=400, label_visibility="collapsed")
             with tabs[1]:
                 if use_summary:
                     st.markdown(summary)
                 else:
                     st.info("Resumo IA não foi solicitado.")
-
             with tabs[2]:
                 if use_translation:
                     st.markdown(translation)
